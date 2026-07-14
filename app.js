@@ -363,8 +363,6 @@ function shareSelectedTable() {
   
   if (navigator.share) {
     navigator.share({
-      title: 'mensamap',
-      text: `Ich sitze hier am Tisch ${window.selectedTableId} in der Mensa!`,
       url: shareURL
     }).then(() => {
       showToast("Erfolgreich geteilt!");
