@@ -137,9 +137,9 @@ function runEntranceAnimation() {
   // Mobile check
   const isMobile = containerRect.width < 768;
   
-  // Zoom configuration
+  // Zoom configuration (50% deeper zoom-in on mobile)
   const startScale = isMobile ? 0.6 : 0.8;
-  const targetScale = isMobile ? 1.3 : 1.1;
+  const targetScale = isMobile ? 2.0 : 1.4;
   
   // Center of main focus (e.g. Speisesaal West/Süd junction, near B-40 / A-1)
   const focusX = 600;
@@ -167,21 +167,16 @@ function runEntranceAnimation() {
   const unscaledFocusX = offsetX + (focusX * svgToPixel);
   const unscaledFocusY = offsetY + (focusY * svgToPixel);
   
-  // 1. Instantly snap to a zoomed-out view
+  // 1. Instantly snap to a zoomed-out view centered on focus area
   window.panzoomInstance.zoom(startScale, { animate: false });
   const startPanX = (containerRect.width / 2) - (unscaledFocusX * startScale);
   const startPanY = (containerRect.height / 2) - (unscaledFocusY * startScale);
   window.panzoomInstance.pan(startPanX, startPanY, { animate: false });
   
-  // 2. Smoothly zoom in to focus area
+  // 2. Smoothly zoom in. Panzoom automatically handles keeping the center stable!
   setTimeout(() => {
     if (document.body.classList.contains("editor-mode")) return;
-    
-    const targetPanX = (containerRect.width / 2) - (unscaledFocusX * targetScale);
-    const targetPanY = (containerRect.height / 2) - (unscaledFocusY * targetScale);
-    
     window.panzoomInstance.zoom(targetScale, { animate: true, duration: 1200 });
-    window.panzoomInstance.pan(targetPanX, targetPanY, { animate: true, duration: 1200 });
   }, 300);
 }
 
