@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  mensamap:
+    build: .
+    container_name: mensamap-prod
+    ports:
+      - "8585:80"
+    restart: unless-stopped

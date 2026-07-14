@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>mensamap - Finde deine Freunde in der Mensa</title>
+  <meta name="description" content="Klicke Tische auf der Karte an und teile den Link mit deinen Freunden, damit sie dich sofort in der Mensa finden. Optimiert fürs Handy!">
+  <link rel="stylesheet" href="style.css">
+  <!-- Panzoom Library -->
+  <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-section">
+      <h1>🍽️ mensamap</h1>
+      <span>Beta</span>
+    </div>
+    
+    <div class="controls-section">
+      <!-- Mensa Selector -->
+      <select id="mensa-select" class="mensa-select">
+        <!-- Will be populated dynamically -->
+      </select>
+      
+      <!-- Theme Toggle -->
+      <button id="theme-toggle-btn" class="theme-toggle" title="Design wechseln">🌙</button>
+      
+      <!-- Mode buttons -->
+      <button id="enter-editor-btn" class="btn btn-secondary">✏️ Editor</button>
+      <button id="exit-editor-btn" class="btn btn-primary" style="display: none;">💾 Beenden</button>
+    </div>
+  </header>
+
+  <!-- App Workspace -->
+  <div id="app-container">
+    
+    <!-- Map Container -->
+    <div id="map-container">
+      <!-- SVG Map Canvas -->
+      <svg id="map" viewBox="0 0 1900 1270">
+        <!-- SVG Grid Lines (Visible only in editor mode) -->
+        <defs>
+          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255, 255, 255, 0.04)" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect id="map-background" width="100%" height="100%" fill="rgba(0, 0, 0, 0)" pointer-events="all" />
+        <rect class="grid-lines" width="100%" height="100%" fill="url(#grid)" />
+        
+        <!-- Interactive Elements will be rendered here dynamically -->
+        <g id="map-areas"></g>
+        <g id="map-tables"></g>
+      </svg>
+      
+      <!-- Floating Legend (Viewer Mode Only) -->
+      <div class="floating-legend" id="legend-panel">
+        <h3>ℹ️ Info & Legende</h3>
+        <div class="legend-item">
+          <div class="legend-color free"></div>
+          <span>Freier Tisch (klickbar)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color selected"></div>
+          <span>Markierter Platz</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color outdoor"></div>
+          <span>Außenbereich</span>
+        </div>
+        <div style="margin-top: 12px; font-size: 0.75rem; color: var(--text-secondary); border-top: 1px solid var(--border-color); padding-top: 8px; line-height: 1.3;">
+          Bewege die Karte mit einem Finger und zoome durch Auf- und Zuziehen mit zwei Fingern.
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor Sidebar Panel -->
+    <div id="editor-panel">
+      <!-- Mensa Admin Operations -->
+      <div class="editor-section">
+        <h3>Cafeteria / Mensa</h3>
+        <div class="form-group">
+          <button id="add-mensa-btn" class="btn btn-secondary" style="width: 100%; margin-bottom: 8px;">➕ Neue Mensa erstellen</button>
+          <button id="delete-mensa-btn" class="btn btn-secondary" style="width: 100%; color: var(--danger); border-color: rgba(239, 68, 68, 0.2)">🗑️ Aktuelle Mensa löschen</button>
+        </div>
+        <div class="form-group">
+          <label>Mensa Name</label>
+          <input type="text" id="edit-mensa-name" placeholder="Name der Mensa">
+        </div>
+        <div class="form-group">
+          <label>Kartengröße (ViewBox)</label>
+          <input type="text" id="edit-mensa-viewbox" placeholder="e.g. 1900 1270">
+        </div>
+      </div>
+
+      <!-- Tool Mode selection -->
+      <div class="editor-section">
+        <h3>Werkzeuge</h3>
+        <div class="tool-grid">
+          <button id="tool-select" class="tool-btn active">
+            <span>🔍</span>
+            <span>Wählen/Verschieben</span>
+          </button>
+          <button id="tool-add-table" class="tool-btn">
+            <span>🪑</span>
+            <span>Tisch hinzufügen</span>
+          </button>
+          <button id="tool-add-area" class="tool-btn">
+            <span>🟩</span>
+            <span>Bereich hinzufügen</span>
+          </button>
+          <button id="tool-add-wall" class="tool-btn">
+            <span>🧱</span>
+            <span>Wand hinzufügen</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Properties Panel -->
+      <div id="properties-panel" class="editor-section" style="display: none;">
+        <h3>Eigenschaften (<span id="selected-type-label">Tisch</span>)</h3>
+        
+        <div class="form-group" id="prop-id-group">
+          <label>ID / Tischnummer</label>
+          <input type="text" id="prop-id" placeholder="z.B. A-12">
+        </div>
+        
+        <div class="form-group" id="prop-label-group">
+          <label>Beschriftung (Text)</label>
+          <input type="text" id="prop-label" placeholder="z.B. Speisesaal Ost">
+        </div>
+        
+        <div class="form-group" id="prop-type-group" style="display: none;">
+          <label>Bereichstyp</label>
+          <select id="prop-type">
+            <option value="indoor">Innenbereich (Saal)</option>
+            <option value="outdoor">Außenbereich (Wiese/Terrasse)</option>
+            <option value="wall">Trennwand</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="prop-shape-group">
+          <label>Tischform</label>
+          <select id="prop-shape">
+            <option value="rect">Rechteckig</option>
+            <option value="circle">Rund</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label>X-Position</label>
+            <input type="number" id="prop-x" step="5">
+          </div>
+          <div class="form-group">
+            <label>Y-Position</label>
+            <input type="number" id="prop-y" step="5">
+          </div>
+          <div class="form-group">
+            <label>Breite (Width)</label>
+            <input type="number" id="prop-w" step="5">
+          </div>
+          <div class="form-group">
+            <label>Höhe (Height)</label>
+            <input type="number" id="prop-h" step="5">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <button id="duplicate-element-btn" class="btn btn-secondary" style="flex: 1; padding: 6px;">📋 Kopieren</button>
+          <button id="delete-element-btn" class="btn btn-secondary" style="flex: 1; color: var(--danger); border-color: rgba(239, 68, 68, 0.2); padding: 6px;">🗑️ Löschen</button>
+        </div>
+      </div>
+
+      <!-- Export/Operations -->
+      <div class="editor-section">
+        <h3>Datenverwaltung</h3>
+        <div class="editor-actions">
+          <div class="legend-item" style="margin-bottom: 8px;">
+            <input type="checkbox" id="snap-grid-checkbox" checked style="margin-right: 6px; cursor: pointer;">
+            <label for="snap-grid-checkbox" style="cursor: pointer; font-size: 0.85rem; color: var(--text-secondary)">Am Raster ausrichten (10px)</label>
+          </div>
+          <button id="export-json-btn" class="btn btn-primary" style="width: 100%;">📤 Layout JSON exportieren</button>
+          <button id="import-json-btn" class="btn btn-secondary" style="width: 100%;">📥 Layout JSON importieren</button>
+          <button id="reset-layout-btn" class="btn btn-secondary" style="width: 100%; color: var(--danger); border-color: rgba(239, 68, 68, 0.15)">🔄 Zurücksetzen auf Standard</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Mobile Bottom Sheet Details -->
+  <div id="bottom-sheet" class="bottom-sheet">
+    <div class="sheet-handle" id="sheet-handle"></div>
+    <div class="sheet-header">
+      <h2 id="sheet-title">Tisch A-1</h2>
+      <button class="sheet-close" id="sheet-close-btn">&times;</button>
+    </div>
+    <div class="sheet-content">
+      <p class="sheet-desc">
+        Teile diesen Platz mit deinen Freunden! Sobald sie auf den Link klicken, wird genau dieser Tisch auf ihrer Karte markiert.
+      </p>
+      <button id="btn-share-link" class="btn-share">
+        <span>🔗</span>
+        <span>Platz-Link teilen</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Password Prompt Modal -->
+  <div id="password-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h2>🔒 Editor freischalten</h2>
+      <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;">
+        Bitte gib das Passwort ein, um in den Bearbeitungsmodus zu wechseln. Standardpasswort: <strong>admin123</strong>
+      </p>
+      <div class="form-group" style="margin-bottom: 0;">
+        <input type="password" id="editor-password-input" placeholder="Passwort eingeben..." style="padding: 12px;">
+      </div>
+      <div id="password-error-msg" style="color: var(--danger); font-size: 0.85rem; display: none;">Falsches Passwort. Bitte erneut versuchen.</div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="cancel-password-btn" class="btn btn-secondary">Abbrechen</button>
+        <button id="submit-password-btn" class="btn btn-primary">Entsperren</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <span id="toast-icon">✓</span>
+    <span id="toast-message">Link in die Zwischenablage kopiert!</span>
+  </div>
+
+  <!-- Hidden File Input for Import -->
+  <input type="file" id="import-file-input" accept=".json" style="display: none;">
+
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>
