@@ -317,24 +317,34 @@ function selectTable(tableId, triggerZoom = false) {
     
     // Zoom and pan to element if requested (like when loading shared links)
     if (triggerZoom && window.panzoomInstance) {
-      const tableData = window.MensaMapData[window.CurrentMensaId].tables.find(t => t.id === tableId);
-      if (tableData) {
+      // 1. Set target zoom scale
+      const scale = 2.5;
+      window.panzoomInstance.zoom(scale);
+      
+      // 2. Wait for the browser to apply scale transform, then measure screen positions and pan to center
+      setTimeout(() => {
+        const targetNode = document.getElementById(`table-node-${tableId}`);
+        if (!targetNode) return;
+        
         const container = document.getElementById("map-container");
         const containerRect = container.getBoundingClientRect();
+        const targetRect = targetNode.getBoundingClientRect();
         
-        const centerX = tableData.x + tableData.width / 2;
-        const centerY = tableData.y + tableData.height / 2;
+        // Target screen center
+        const screenCenterX = containerRect.left + containerRect.width / 2;
+        const screenCenterY = containerRect.top + containerRect.height / 2;
         
-        // High zoom factor for target table
-        const scale = 2.5;
-        window.panzoomInstance.zoom(scale);
+        // Element's current screen center (at scale = 2.5)
+        const elementCenterX = targetRect.left + targetRect.width / 2;
+        const elementCenterY = targetRect.top + targetRect.height / 2;
         
-        setTimeout(() => {
-          const panX = (containerRect.width / 2) - (centerX * scale);
-          const panY = (containerRect.height / 2) - (centerY * scale);
-          window.panzoomInstance.pan(panX, panY);
-        }, 100);
-      }
+        // Shift required to move element's center to screen's center
+        const deltaX = screenCenterX - elementCenterX;
+        const deltaY = screenCenterY - elementCenterY;
+        
+        const currentPan = window.panzoomInstance.getPan();
+        window.panzoomInstance.pan(currentPan.x + deltaX, currentPan.y + deltaY);
+      }, 150);
     }
   }
 }
