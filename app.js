@@ -111,7 +111,78 @@ function setupURLRoute() {
     setTimeout(() => {
       selectTable(tableId, true);
     }, 200);
+  } else {
+    // Run zoom-in entrance animation
+    setTimeout(() => {
+      runEntranceAnimation();
+    }, 200);
   }
+}
+
+// Run a smooth entry zoom animation (focusing on the center area of the tables)
+function runEntranceAnimation() {
+  if (!window.panzoomInstance) return;
+  if (document.body.classList.contains("editor-mode")) return;
+  
+  const container = document.getElementById("map-container");
+  const containerRect = container.getBoundingClientRect();
+  
+  // Parse current viewBox
+  const svg = document.getElementById("map");
+  const viewBoxAttr = svg.getAttribute("viewBox") || "0 0 1900 1270";
+  const vbParts = viewBoxAttr.split(" ").map(parseFloat);
+  const vbWidth = vbParts[2];
+  const vbHeight = vbParts[3];
+  
+  // Mobile check
+  const isMobile = containerRect.width < 768;
+  
+  // Zoom configuration
+  const startScale = isMobile ? 0.6 : 0.8;
+  const targetScale = isMobile ? 1.3 : 1.1;
+  
+  // Center of main focus (e.g. Speisesaal West/Süd junction, near B-40 / A-1)
+  const focusX = 600;
+  const focusY = 750;
+  
+  // Calculate mapping scale
+  const containerAspect = containerRect.width / containerRect.height;
+  const svgAspect = vbWidth / vbHeight;
+  
+  let svgRenderedWidth = containerRect.width;
+  let offsetX = 0;
+  let offsetY = 0;
+  
+  if (containerAspect > svgAspect) {
+    const svgRenderedHeight = containerRect.height;
+    svgRenderedWidth = svgRenderedHeight * svgAspect;
+    offsetX = (containerRect.width - svgRenderedWidth) / 2;
+  } else {
+    svgRenderedWidth = containerRect.width;
+    const svgRenderedHeight = svgRenderedWidth / svgAspect;
+    offsetY = (containerRect.height - svgRenderedHeight) / 2;
+  }
+  
+  const svgToPixel = svgRenderedWidth / vbWidth;
+  const unscaledFocusX = offsetX + (focusX * svgToPixel);
+  const unscaledFocusY = offsetY + (focusY * svgToPixel);
+  
+  // 1. Instantly snap to a zoomed-out view
+  window.panzoomInstance.zoom(startScale, { animate: false });
+  const startPanX = (containerRect.width / 2) - (unscaledFocusX * startScale);
+  const startPanY = (containerRect.height / 2) - (unscaledFocusY * startScale);
+  window.panzoomInstance.pan(startPanX, startPanY, { animate: false });
+  
+  // 2. Smoothly zoom in to focus area
+  setTimeout(() => {
+    if (document.body.classList.contains("editor-mode")) return;
+    
+    const targetPanX = (containerRect.width / 2) - (unscaledFocusX * targetScale);
+    const targetPanY = (containerRect.height / 2) - (unscaledFocusY * targetScale);
+    
+    window.panzoomInstance.zoom(targetScale, { animate: true, duration: 1200 });
+    window.panzoomInstance.pan(targetPanX, targetPanY, { animate: true, duration: 1200 });
+  }, 300);
 }
 
 // Set up event listeners for main UI elements
@@ -175,10 +246,10 @@ function switchMensa(mensaId) {
   // Update URL
   updateURL(mensaId, null);
   
-  // Reset Panzoom to fit the new map size
-  if (window.panzoomInstance) {
-    window.panzoomInstance.reset();
-  }
+  // Run entrance animation for the new Mensa
+  setTimeout(() => {
+    runEntranceAnimation();
+  }, 100);
 }
 
 // Render dynamic map content from data
